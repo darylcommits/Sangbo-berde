@@ -1,0 +1,179 @@
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+// Database schema for SANGBO BERDE
+export const createDatabaseSchema = async () => {
+  // This would be run as SQL in Supabase dashboard
+  const schema = `
+    -- Note: RLS is already enabled on auth.users by default
+
+    -- User profiles table
+    CREATE TABLE IF NOT EXISTS profiles (
+      id UUID REFERENCES auth.users(id) PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      full_name TEXT NOT NULL,
+      role TEXT NOT NULL CHECK (role IN ('admin', 'supervisor', 'collector', 'facility_staff', 'citizen')),
+      phone TEXT,
+      barangay TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Staff attendance table
+    CREATE TABLE IF NOT EXISTS attendance (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      staff_id UUID REFERENCES profiles(id) NOT NULL,
+      check_in TIMESTAMP WITH TIME ZONE NOT NULL,
+      check_out TIMESTAMP WITH TIME ZONE,
+      location_lat DECIMAL,
+      location_lng DECIMAL,
+      status TEXT CHECK (status IN ('present', 'late', 'absent')) DEFAULT 'present',
+      notes TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Task assignments table
+    CREATE TABLE IF NOT EXISTS tasks (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT,
+      assigned_to UUID REFERENCES profiles(id),
+      assigned_by UUID REFERENCES profiles(id),
+      status TEXT CHECK (status IN ('pending', 'in_progress', 'completed', 'cancelled')) DEFAULT 'pending',
+      priority TEXT CHECK (priority IN ('low', 'medium', 'high', 'urgent')) DEFAULT 'medium',
+      due_date TIMESTAMP WITH TIME ZONE,
+      route_id UUID REFERENCES routes(id),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Routes table
+    CREATE TABLE IF NOT EXISTS routes (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      name TEXT NOT NULL,
+      barangay TEXT NOT NULL,
+      description TEXT,
+      start_location_lat DECIMAL,
+      start_location_lng DECIMAL,
+      end_location_lat DECIMAL,
+      end_location_lng DECIMAL,
+      estimated_duration INTEGER, -- in minutes
+      is_active BOOLEAN DEFAULT true,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Waste collection logs
+    CREATE TABLE IF NOT EXISTS collection_logs (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      collector_id UUID REFERENCES profiles(id) NOT NULL,
+      route_id UUID REFERENCES routes(id),
+      collection_date TIMESTAMP WITH TIME ZONE NOT NULL,
+      waste_type TEXT CHECK (waste_type IN ('biodegradable', 'non_biodegradable', 'recyclable', 'hazardous')) NOT NULL,
+      weight_kg DECIMAL,
+      location_lat DECIMAL,
+      location_lng DECIMAL,
+      notes TEXT,
+      photos TEXT[], -- Array of photo URLs
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Compost facility operations
+    CREATE TABLE IF NOT EXISTS compost_operations (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      staff_id UUID REFERENCES profiles(id) NOT NULL,
+      operation_type TEXT CHECK (operation_type IN ('segregation', 'fermentation', 'curing', 'packaging', 'quality_check')) NOT NULL,
+      input_weight_kg DECIMAL,
+      output_weight_kg DECIMAL,
+      temperature DECIMAL,
+      humidity DECIMAL,
+      ph_level DECIMAL,
+      notes TEXT,
+      photos TEXT[],
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Citizen reports
+    CREATE TABLE IF NOT EXISTS citizen_reports (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      reporter_id UUID REFERENCES profiles(id),
+      report_type TEXT CHECK (report_type IN ('missed_collection', 'illegal_dumping', 'overflow_bin', 'environmental_complaint', 'other')) NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      location_lat DECIMAL,
+      location_lng DECIMAL,
+      address TEXT,
+      status TEXT CHECK (status IN ('pending', 'assigned', 'in_progress', 'resolved', 'closed')) DEFAULT 'pending',
+      assigned_to UUID REFERENCES profiles(id),
+      priority TEXT CHECK (priority IN ('low', 'medium', 'high', 'urgent')) DEFAULT 'medium',
+      photos TEXT[],
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Notifications table
+    CREATE TABLE IF NOT EXISTS notifications (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      user_id UUID REFERENCES profiles(id) NOT NULL,
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      type TEXT CHECK (type IN ('task_assignment', 'alert', 'reminder', 'report_update', 'system')) NOT NULL,
+      is_read BOOLEAN DEFAULT false,
+      related_id UUID, -- Can reference tasks, reports, etc.
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Sustainability metrics
+    CREATE TABLE IF NOT EXISTS sustainability_metrics (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      date DATE NOT NULL,
+      waste_collected_kg DECIMAL DEFAULT 0,
+      waste_composted_kg DECIMAL DEFAULT 0,
+      compost_produced_kg DECIMAL DEFAULT 0,
+      co2_reduction_kg DECIMAL DEFAULT 0,
+      landfill_diversion_percentage DECIMAL DEFAULT 0,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- RLS Policies
+    -- Profiles policies
+    CREATE POLICY "Users can view their own profile" ON profiles
+      FOR SELECT USING (auth.uid() = id);
+
+    CREATE POLICY "Users can update their own profile" ON profiles
+      FOR UPDATE USING (auth.uid() = id);
+
+    -- Attendance policies
+    CREATE POLICY "Staff can view their own attendance" ON attendance
+      FOR SELECT USING (auth.uid() = staff_id OR 
+        EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'supervisor')));
+
+    CREATE POLICY "Staff can create their own attendance" ON attendance
+      FOR INSERT WITH CHECK (auth.uid() = staff_id);
+
+    -- Tasks policies
+    CREATE POLICY "Users can view assigned tasks" ON tasks
+      FOR SELECT USING (auth.uid() = assigned_to OR 
+        EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'supervisor')));
+
+    -- Citizen reports policies
+    CREATE POLICY "Citizens can create reports" ON citizen_reports
+      FOR INSERT WITH CHECK (auth.uid() = reporter_id);
+
+    CREATE POLICY "Users can view their own reports" ON citizen_reports
+      FOR SELECT USING (auth.uid() = reporter_id OR 
+        EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'supervisor')));
+
+    -- Notifications policies
+    CREATE POLICY "Users can view their own notifications" ON notifications
+      FOR SELECT USING (auth.uid() = user_id);
+
+    CREATE POLICY "Users can update their own notifications" ON notifications
+      FOR UPDATE USING (auth.uid() = user_id);
+  `;
+  
+  return schema;
+};
