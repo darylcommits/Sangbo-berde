@@ -150,8 +150,7 @@ const LandingPage = () => {
               }`}
             >
               <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
-                A comprehensive HR-driven mobile response platform for city-scale composting operations. 
-                Streamline waste management, boost sustainability, and engage your community.
+              an innovative, technology-enhanced waste management service that combines structured workforce management featuring digital attendance tracking, scheduling, task assignments, and accountability monitoring with real-time mobile alerts for route updates and urgent community issues.
               </p>
             </div>
             
