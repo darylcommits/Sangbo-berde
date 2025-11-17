@@ -423,7 +423,8 @@ const LandingPage = () => {
                 <span className="text-2xl">📞</span>
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">Call Us</h3>
-              <p className="text-gray-600">+63 2 1234 5678</p>
+              <p className="text-gray-600">
++63 993-819-0512</p>
             </div>
             
             <div className="text-center">
@@ -431,7 +432,7 @@ const LandingPage = () => {
                 <span className="text-2xl">📍</span>
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">Visit Us</h3>
-              <p className="text-gray-600">City Hall, Metro Manila</p>
+              <p className="text-gray-600">Plaza Maetro Commercial Complex, Vigan City, Ilocos Sur</p>
             </div>
           </div>
         </div>
