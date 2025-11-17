@@ -161,35 +161,12 @@ const AboutSection = () => {
               animation: isVisible ? 'fadeInUp 1s ease-out forwards' : 'none'
             }}
           >
-            <h3 className="text-3xl font-bold mb-6">Our Mission</h3>
+            <h3 className="text-3xl font-bold mb-6">Our Vision & Mission</h3>
             <p className="text-xl max-w-4xl mx-auto leading-relaxed">
               To transform waste management through innovative technology, creating sustainable 
               communities where every piece of organic waste becomes a valuable resource for 
               agricultural growth and environmental protection.
             </p>
-            <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
-              {[
-                { value: "2.5 tons", label: "CO₂ Reduced Monthly" },
-                { value: "15+", label: "Barangays Served" },
-                { value: "98%", label: "Community Satisfaction" }
-              ].map((stat, index) => (
-                <div 
-                  key={index}
-                  className="text-center group hover:scale-105 transition-all duration-300"
-                  style={{
-                    animationDelay: `${index * 200}ms`,
-                    animation: isVisible ? 'fadeInUp 0.6s ease-out forwards' : 'none'
-                  }}
-                >
-                  <div className="text-3xl font-bold group-hover:text-yellow-200 transition-colors duration-300">
-                    {stat.value}
-                  </div>
-                  <div className="text-primary-100 group-hover:text-white transition-colors duration-300">
-                    {stat.label}
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       </div>
